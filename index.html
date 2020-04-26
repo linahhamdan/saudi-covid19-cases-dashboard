@@ -1,0 +1,922 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+    integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+    integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+    integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+    crossorigin="anonymous"></script>
+  <link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:300,400|Roboto:300,400,500,700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #F7F8FB;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    h2 {
+      margin: 10px 10px 0 10px;
+      margin-left: 20px;
+    }
+
+    .card {
+      margin: 10px 0 20px 0;
+      padding: 12px 15px;
+      background-color: #FFFFFF;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .15);
+    }
+
+    .meta-label {
+      color: #909090;
+      /* padding: 5px 0 0; */
+      font-size: 14px;
+      margin: 0 10px 0 20px;
+    }
+
+    .meta {
+      color: #4F4F4F;
+      /* padding: 5px 0 0; */
+      font-size: 14px;
+      margin-right: 20px;
+    }
+
+    .map {
+      padding: 0;
+      margin: 0;
+      height: 500px;
+      width: 100%;
+    }
+
+    #total-active,
+    #total-confirmed,
+    #total-deaths,
+    #total-recovered {
+      font-weight: bold;
+      font-size: 28px;
+    }
+
+
+    #total-active {
+      color: #EB5757;
+    }
+
+    #total-confirmed {
+      color: #FF7335
+    }
+
+    #total-deaths {
+      color: #2F80ED;
+    }
+
+    #total-recovered {
+      color: #27AE60;
+    }
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.15/esri/themes/light/main.css" />
+
+  <script src="https://js.arcgis.com/4.15/"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script type="text/javascript">
+
+    var events = {
+      "3/2/2020": "First case of COVID-19",
+      "3/4/2020": "Umrah suspension",
+      "3/9/2020": "flights suspended to number of countries",
+      "3/15/2020": "International flights suspension for 14 days",
+      "3/16/2020": "Gov / private suspension ",
+      "3/21/2020": "Domestic flights suspension",
+      "3/23/2020": "Curfew started for 21 days (6am -7 pm)",
+      "3/26/2020": "Riyadh, Makkah and Madinah lockdown - curfew (6am - 3pm)",
+      "3/29/2020": "Jeddah lockdown",
+      "3/30/2020": "Makkah , Madinah 24 hours curfew",
+      "4/2/2020": "Makkah lockdown",
+      "4/4/2020": "Jeddah areas lockdown - 24 h curfew",
+      "4/6/2020": "Riyadh, Dammam , Tabuk , Dahran, Hafuf, Jeddah, Taif, Qatif , Khobar24h curfew",
+
+
+    };
+
+    daily_url = 'https://services8.arcgis.com/uiAtN7dLXbrrdVL5/ArcGIS/rest/services/Saudi_COVID19_Cases/FeatureServer/1/query?where=1%3D1&objectIds=&time=&resultType=none&outFields=*&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&orderByFields=Reportdt&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=pjson&token=';
+    var cumulative_dataset;
+    var daily_dataset;
+
+    fetch(daily_url)
+      .then(res => res.json())
+      .then((out) => {
+        daily_dataset = out["features"];
+        console.log('Checkout this JSON! ', out);
+      })
+      .catch(err => { throw err });
+
+
+
+
+
+
+    google.charts.load('current', { packages: ['corechart', 'line'] });
+    google.charts.setOnLoadCallback(drawCurveTypes);
+
+    function drawCurveTypes() {
+
+      var helper = {};
+      var daily_result = daily_dataset.reduce(function (r, value) {
+
+        var date = new Date(value["attributes"]["Reportdt"]);
+        var dd = date.getDate();
+        var mm = date.getMonth() + 1; //January is 0!
+        var yyyy = date.getFullYear();
+
+        var key = mm+"/"+ dd+"/"+yyyy;//"02/07/2011" "mm/dd/yyyy"
+
+        var confirmed_value = value["attributes"]["Confirmed"];
+        var active_value = value["attributes"]["Active"];
+        var recovered_value = value["attributes"]["Recovered"];
+        var deaths_value = value["attributes"]["Deaths"];
+
+        if (!helper[key]) {
+          // helper[key] = //Object.assign({}, value["attributes"]); // create a copy of o
+          helper[key] = { Day: key, Confirmed: confirmed_value, Active: active_value, Recovered: recovered_value, Deaths: deaths_value };
+          r.push(helper[key]);
+        } else {
+          helper[key].Confirmed += confirmed_value;
+          helper[key].Active += active_value;
+          helper[key].Recovered += recovered_value;
+          helper[key].Deaths += deaths_value;
+          //   helper[key].instances += o.instances;
+        }
+        return r;
+      }, []);
+
+      console.log(daily_result);
+
+      var Total_Confirmed = -1, Total_Active = -1, Total_Recovered = 0, Total_Deaths = 0;
+
+      daily_result.forEach(function (item, index) {
+        // console.log(item.Active);
+        Total_Confirmed += item.Confirmed;
+        Total_Active += item.Active;
+        Total_Recovered += item.Recovered;
+        Total_Deaths += item.Deaths;
+      });
+      // console.log(total_indicators);
+
+      document.getElementById("total-confirmed").innerHTML = Total_Confirmed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-active").innerHTML = Total_Active.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-recovered").innerHTML = Total_Recovered.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-deaths").innerHTML = Total_Deaths.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      var active_percent = (Total_Active * 100 / Total_Confirmed);
+      var recovered_percent = (Total_Recovered * 100 / Total_Confirmed);
+      var deaths_percent = (Total_Deaths * 100 / Total_Confirmed);
+
+      var active_x2 = active_percent - 2;
+      var recovered_x2 = active_x2 + recovered_percent;
+      var recovered_x_text = active_x2 + (recovered_percent / 2);
+
+      var deaths_x = recovered_x2;
+      var deaths_x_text = (recovered_x2 + (deaths_percent) + 0.5);
+      var newSvg = document.getElementById('cases-percentage');
+      newSvg.outerHTML += '<svg  width="100%" height="20px" xmlns="http://www.w3.org/2000/svg" version="1.1"><line x1="0" y1="15" x2="' + active_x2 + '%" y2="15" style="stroke-linecap: round;stroke: #EB5757; stroke-width: 12 ;border-radius: 10px;"></line><text x="' + (active_percent / 2) + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + active_percent.toFixed(1) + '%</text><line x1="' + active_x2 + '%" y1="15" x2="' + (recovered_x2) + '%" y2="15" style="stroke: #27AE60; stroke-width: 12"></line><text x="' + recovered_x_text + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + recovered_percent.toFixed(1) + '%</text><line x1="' + deaths_x + '%" y1="15" x2="100%" y2="15" style="stroke: #2F80ED; stroke-width: 12"></line><text x="' + deaths_x_text + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + deaths_percent.toFixed(1) + '%</text></svg>';
+
+
+
+
+
+
+      var data = new google.visualization.DataTable();
+      data.addColumn('date', 'Day');
+      data.addColumn({ type: 'string', role: 'annotation' });
+      data.addColumn('number', 'Confirmed');
+      data.addColumn('number', 'Active');
+      data.addColumn('number', 'Recovered');
+      data.addColumn('number', 'Deaths');
+      daily_result.forEach(function myFunction(item, index, arr) {
+        var event = null;
+        if ((item["Day"] in events) == true) {
+          event = events[item["Day"]];
+        }
+        var row = [new Date(item["Day"]), event, item["Confirmed"], item["Active"], item["Recovered"], item["Deaths"]];
+        data.addRow(row);
+      });
+      var options = {
+
+        'height': 500,
+        chartArea: { left: 50, top: 30, height: '75%', width: "90%" },
+        'legend': 'bottom',
+        hAxis: {
+          format: 'M/d',
+          // title: 'Time'
+
+        },
+        vAxis: {
+          // title: 'Popularity'
+          format: 'short'
+        },
+        series: {
+          // 1: {curveType: 'function'}
+          0: { color: '#FF7335' },
+          1: { color: '#EB5757' },
+          2: { color: '#27AE60' },
+          3: { color: '#2F80ED' }
+        },
+        annotations: {
+          style: 'line',
+          textStyle: {
+            opacity: 0.5
+          }
+        }
+      };
+      var chart2 = new google.visualization.LineChart(document.getElementById('chart_daily'));
+      chart2.draw(data, options);
+
+
+
+
+
+
+
+
+
+
+      var cumulative_result = [];
+      var sum_confirmed = -1, sum_active = -1, sum_recovered = 0, sum_deaths = 0;
+      daily_result.forEach(function myFunction(item, index, arr) {
+        sum_confirmed += item["Confirmed"];
+        sum_active += item["Active"];
+        sum_recovered += item["Recovered"];
+        sum_deaths += item["Deaths"];
+        cumulative_result.push({ Day: item["Day"], Confirmed: sum_confirmed, Active: sum_active, Recovered: sum_recovered, Deaths: sum_deaths });
+
+      });
+
+      console.log(cumulative_result);
+
+      var data = new google.visualization.DataTable();
+      data.addColumn('date', 'Day');
+      data.addColumn({ type: 'string', role: 'annotation' });
+
+      data.addColumn('number', 'Confirmed');
+      data.addColumn('number', 'Active');
+
+      data.addColumn('number', 'Recovered');
+
+      data.addColumn('number', 'Deaths');
+      cumulative_result.forEach(function myFunction(item, index, arr) {
+        // console.log(item);
+        // data.addRow([, null, null, 1, 0.5]);
+        var event = null;
+        if ((item["Day"] in events) == true) {
+          event = events[item["Day"]];
+        }
+
+        var row = [new Date(item["Day"]), event, item["Confirmed"], item["Active"], item["Recovered"], item["Deaths"]];
+        data.addRow(row);
+      });
+      var options = {
+        'height': 500,
+
+        chartArea: { left: 50, top: 30, height: '75%', 'width': '90%' },
+        'legend': 'bottom',
+        pointSize: 5,
+        hAxis: {
+          format: 'M/d',
+          // title: 'Time'
+
+        },
+        vAxis: {
+          // title: 'Popularity'
+          format: 'short'
+        },
+        series: {
+          // 1: {curveType: 'function'}
+          0: { color: '#FF7335' },
+          1: { color: '#EB5757' },
+          2: { color: '#27AE60' },
+          3: { color: '#2F80ED' },
+        },
+        annotations: {
+          style: 'line',
+          textStyle: {
+            opacity: 0.5
+          }
+        }
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('chart_cumulative'));
+      chart.draw(data, options);
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+    google.charts.load('current', { 'packages': ['treemap'] });
+    google.charts.setOnLoadCallback(drawTreeChart);
+    function drawTreeChart() {
+
+
+
+      var helper = {};
+      var daily_bycity = daily_dataset.reduce(function (r, value) {
+
+        var key = value["attributes"]["Name_Eng"];
+
+        var confirmed_value = value["attributes"]["Confirmed"];
+        var active_value = value["attributes"]["Active"];
+        var recovered_value = value["attributes"]["Recovered"];
+        var deaths_value = value["attributes"]["Deaths"];
+
+        if (!helper[key]) {
+          // helper[key] = //Object.assign({}, value["attributes"]); // create a copy of o
+          helper[key] = { City: key, Confirmed: confirmed_value, Active: active_value, Recovered: recovered_value, Deaths: deaths_value };
+          r.push(helper[key]);
+        } else {
+          helper[key].Confirmed += confirmed_value;
+          helper[key].Active += active_value;
+          helper[key].Recovered += recovered_value;
+          helper[key].Deaths += deaths_value;
+          //   helper[key].instances += o.instances;
+        }
+        return r;
+      }, []);
+
+
+
+
+
+
+
+
+
+
+
+
+      var dt_confirmed = [['City', 'Parent', 'Value'], [' ', null, 0]];
+      daily_bycity.forEach(function myFunction(item, index, arr) {
+        var row = [item["City"], " ", item["Confirmed"]];
+        dt_confirmed.push(row);
+      });
+      var data_confirmed = new google.visualization.arrayToDataTable(dt_confirmed);
+
+
+      var view_confirmed = new google.visualization.DataView(data_confirmed);
+      view_confirmed.setColumns([{
+        calc: function (dt, row) {
+          var rowValue;
+
+          if (row === 0) {
+            rowValue = dt.getValue(row, 0);  // value for global
+          } else {
+            // change display value by changing formatted value
+            rowValue = {
+              v: dt.getValue(row, 0),
+              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
+            };
+          }
+
+          return rowValue;
+        },
+        label: data_confirmed.getColumnLabel(0),
+        type: data_confirmed.getColumnType(0)
+      }, 1, 2]);
+
+      tree_confirmed = new google.visualization.TreeMap(document.getElementById('tree_confirmed'));
+      google.visualization.events.addListener(tree_confirmed, 'select', function () {
+        tree_confirmed.setSelection([]);
+      });
+      tree_confirmed.draw(view_confirmed, {
+        height: 500,
+        minColor: '#ededed',
+        midColor: '#ffa882',
+        maxColor: '#FF7335',
+        headerHeight: 15,
+        fontColor: 'black',
+        // showScale: true
+        generateTooltip: showTooltipConfirmed,
+        useWeightedAverageForAggregation: false
+      });
+      function showTooltipConfirmed(row, size, value) {
+        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
+          '<span><b>' + data_confirmed.getValue(row, 0) +
+          '</b>, ' + data_confirmed.getValue(row, 2);
+      }
+
+
+
+
+
+
+
+
+
+
+      var dt_active = [['City', 'Parent', 'Value'], [' ', null, 0]];
+      daily_bycity.forEach(function myFunction(item, index, arr) {
+        var row = [item["City"], " ", item["Active"]];
+        dt_active.push(row);
+      });
+
+      var data_active = new google.visualization.arrayToDataTable(dt_active);
+
+
+      var view_active = new google.visualization.DataView(data_active);
+      view_active.setColumns([{
+        calc: function (dt, row) {
+          var rowValue;
+
+          if (row === 0) {
+            rowValue = dt.getValue(row, 0);  // value for global
+          } else {
+            // change display value by changing formatted value
+            rowValue = {
+              v: dt.getValue(row, 0),
+              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
+            };
+          }
+
+          return rowValue;
+        },
+        label: data_active.getColumnLabel(0),
+        type: data_active.getColumnType(0)
+      }, 1, 2]);
+
+
+
+      tree_active = new google.visualization.TreeMap(document.getElementById('tree_active'));
+      google.visualization.events.addListener(tree_active, 'select', function () {
+        tree_active.setSelection([]);
+      });
+      tree_active.draw(view_active, {
+        height: 500,
+        minColor: '#ededed',
+        midColor: '#ffa882',
+        maxColor: '#EB5757',
+        headerHeight: 15,
+        fontColor: 'black',
+        // showScale: true
+        generateTooltip: showTooltipActive,
+        useWeightedAverageForAggregation: false
+      });
+
+
+
+
+      function showTooltipActive(row, size, value) {
+        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
+          '<span><b>' + data_active.getValue(row, 0) +
+          '</b>, ' + data_active.getValue(row, 2);
+      }
+
+
+
+
+
+
+
+
+
+      var dt_recovered = [['City', 'Parent', 'Value'], [' ', null, 0]];
+      daily_bycity.forEach(function myFunction(item, index, arr) {
+        var row = [item["City"], " ", item["Recovered"]];
+        dt_recovered.push(row);
+      });
+
+      var data_recovered = new google.visualization.arrayToDataTable(dt_recovered);
+
+
+      var view_recovered = new google.visualization.DataView(data_recovered);
+      view_recovered.setColumns([{
+        calc: function (dt, row) {
+          var rowValue;
+
+          if (row === 0) {
+            rowValue = dt.getValue(row, 0);  // value for global
+          } else {
+            // change display value by changing formatted value
+            rowValue = {
+              v: dt.getValue(row, 0),
+              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
+            };
+          }
+
+          return rowValue;
+        },
+        label: data_recovered.getColumnLabel(0),
+        type: data_recovered.getColumnType(0)
+      }, 1, 2]);
+
+
+
+      tree_recovered = new google.visualization.TreeMap(document.getElementById('tree_recovered'));
+      google.visualization.events.addListener(tree_recovered, 'select', function () {
+        tree_recovered.setSelection([]);
+      });
+      tree_recovered.draw(view_recovered, {
+        height: 500,
+        minColor: '#ededed',
+        midColor: '#4bd786',
+        maxColor: '#27AE60',
+        headerHeight: 15,
+        fontColor: 'black',
+        // showScale: true
+        generateTooltip: showTooltipRecovered,
+        useWeightedAverageForAggregation: false
+      });
+
+
+
+
+      function showTooltipRecovered(row, size, value) {
+        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
+          '<span><b>' + data_recovered.getValue(row, 0) +
+          '</b>, ' + data_recovered.getValue(row, 2);
+      }
+
+
+
+      var dt_deaths = [['City', 'Parent', 'Value'], [' ', null, 0]];
+      daily_bycity.forEach(function myFunction(item, index, arr) {
+        var row = [item["City"], " ", item["Deaths"]];
+        dt_deaths.push(row);
+      });
+
+      var data_deaths = new google.visualization.arrayToDataTable(dt_deaths);
+
+
+      var view_deaths = new google.visualization.DataView(data_deaths);
+      view_deaths.setColumns([{
+        calc: function (dt, row) {
+          var rowValue;
+
+          if (row === 0) {
+            rowValue = dt.getValue(row, 0);  // value for global
+          } else {
+            // change display value by changing formatted value
+            rowValue = {
+              v: dt.getValue(row, 0),
+              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
+            };
+          }
+
+          return rowValue;
+        },
+        label: data_deaths.getColumnLabel(0),
+        type: data_deaths.getColumnType(0)
+      }, 1, 2]);
+
+
+
+      tree_deaths = new google.visualization.TreeMap(document.getElementById('tree_deaths'));
+      google.visualization.events.addListener(tree_deaths, 'select', function () {
+        tree_deaths.setSelection([]);
+      });
+      tree_deaths.draw(view_deaths, {
+        height: 500,
+        minColor: '#ededed',
+        midColor: '#75abf3',
+        maxColor: '#2F80ED',
+        headerHeight: 15,
+        fontColor: 'black',
+        // showScale: true
+        generateTooltip: showTooltipDeaths,
+        useWeightedAverageForAggregation: false
+      });
+
+
+
+
+      function showTooltipDeaths(row, size, value) {
+        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
+          '<span><b>' + data_deaths.getValue(row, 0) +
+          '</b>, ' + data_deaths.getValue(row, 2);
+      }
+
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    require(["esri/views/MapView", "esri/WebMap", "esri/config"], function (MapView, WebMap, esriConfig) {
+      /************************************************************
+       * Creates a new WebMap instance. A WebMap must reference
+       * a PortalItem ID that represents a WebMap saved to
+       * arcgis.com or an on-premise portal.
+       *
+       * To load a WebMap from an on-premise portal, set the portal
+       * url with esriConfig.portalUrl.
+       ************************************************************/
+      var webmap_confirmed = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "1ec450309a9b4b86802dfc326c89cfa9"
+        }
+      });
+      var view_confirmed = new MapView({
+        map: webmap_confirmed,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "confirmed-map"
+      });
+
+      esriConfig.portalUrl = "https://kapsarc.esri.com/arcgis";
+
+      var webmap_active = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "ead7a705fe6e43e0904526b362039ebd"
+        }
+      });
+      var view_active = new MapView({
+        map: webmap_active,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+
+        container: "active-map"
+      });
+
+
+
+      var webmap_recovered = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "e637a79af57248ca8a247ffb4d102ad5"
+        }
+      });
+      var view_recovered = new MapView({
+        map: webmap_recovered,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "recovered-map"
+      });
+
+
+      var webmap_deaths = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "9288f4d2d7124ede9502e8f7b2ba87b8"
+        }
+      });
+      var view_deaths = new MapView({
+        map: webmap_deaths,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "deaths-map"
+      });
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+
+    function show_map() {
+      if (document.getElementById('select-map-confirmed').checked) {
+        document.getElementById('confirmed-map').style.height = '500px';
+        document.getElementById('active-map').style.height = 0;
+        document.getElementById('recovered-map').style.height = 0;
+        document.getElementById('deaths-map').style.height = 0;
+
+        document.getElementById('tree_confirmed').style.display = "block";
+        document.getElementById('tree_active').style.display = "none";
+        document.getElementById('tree_recovered').style.display = "none";
+        document.getElementById('tree_deaths').style.display = "none";
+      }
+      else if (document.getElementById('select-map-active').checked) {
+
+        document.getElementById('confirmed-map').style.height = 0;
+        document.getElementById('active-map').style.height = '500px';
+        document.getElementById('recovered-map').style.height = 0;
+        document.getElementById('deaths-map').style.height = 0;
+
+        document.getElementById('tree_confirmed').style.display = "none";
+        document.getElementById('tree_active').style.display = "block";
+        document.getElementById('tree_recovered').style.display = "none";
+        document.getElementById('tree_deaths').style.display = "none";
+      }
+      else if (document.getElementById('select-map-recovered').checked) {
+        document.getElementById('confirmed-map').style.height = 0;
+        document.getElementById('active-map').style.height = 0;
+        document.getElementById('recovered-map').style.height = '500px';
+        document.getElementById('deaths-map').style.height = 0;
+
+        document.getElementById('tree_confirmed').style.display = "none";
+        document.getElementById('tree_active').style.display = "none";
+        document.getElementById('tree_recovered').style.display = "block";
+        document.getElementById('tree_deaths').style.display = "none";
+      }
+      else if (document.getElementById('select-map-deaths').checked) {
+        document.getElementById('confirmed-map').style.height = 0;
+        document.getElementById('active-map').style.height = 0;
+        document.getElementById('recovered-map').style.height = 0;
+        document.getElementById('deaths-map').style.height = '500px';
+
+
+        document.getElementById('tree_confirmed').style.display = "none";
+        document.getElementById('tree_active').style.display = "none";
+        document.getElementById('tree_recovered').style.display = "none";
+        document.getElementById('tree_deaths').style.display = "block";
+      }
+    }
+  </script>
+</head>
+
+<body onload="javascript:show_map();">
+
+  <div class="container">
+    <div class="row">
+      <h2>COVID-19 Cases in Saudi Arabia</h2>
+    </div>
+    <div class="row">
+      <span class="meta-label">Data Source: </span>
+      <span class="meta">
+        <a href="https://datasource.kapsarc.org/explore/dataset/saudi-arabia-coronavirus-disease-covid-19-situation/"
+          target="_blank">
+          Ministry of Health
+        </a>
+      </span>
+      <!-- <span class="meta-label">Last Updated: </span> -->
+      <!-- <span class="meta"> **</span> -->
+
+
+    </div>
+    <!-- <div class="row" style="margin-top: 25px;">
+    <div class="col-md-3" style="float: center;">
+
+      <div class="text-right">Confirmed Cases Overview</div>
+    </div>
+    <div class="col-md-9">
+      <svg width="100%" height="20px" xmlns="http://www.w3.org/2000/svg" version="1.1"> 
+        <line class="stroke-3" x1="40" x2="250" y1="100" y2="100" style=" stroke-linecap: round;"/>
+
+        
+        <line x1="0" y1="12" x2="80%" y2="12" style="stroke-linecap: round;stroke: #EB5757; stroke-width: 12 ;border-radius: 10px;"></line>
+        <text x="40%" y="13" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">80%</text>
+        <line x1="80%" y1="12" x2="93%" y2="12" style="stroke: green; stroke-width: 12"></line>
+        <text x="87%" y="13" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">13%</text>
+      </svg>
+    </div>
+    
+  </div> -->
+    <div class="card" style="padding: 10px 0 0 0;">
+      <div class="row">
+        <div class="col-md-3">
+          <div id="total-confirmed" class="text-center">
+          </div>
+          <div class="text-center">
+            Total Confirmed Cases
+
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-active">
+          </div>
+          <div class="">
+            Active Cases
+
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-recovered">
+          </div>
+          <div class="">
+            Recovered cases
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-deaths">
+          </div>
+          <div class="">
+            Death cases
+
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3">
+        </div>
+
+
+        <div class="col-md-9">
+          <div id="cases-percentage"></div>
+
+          </svg>
+
+        </div>
+
+      </div>
+    </div>
+
+
+    <div class="row" style="margin: 10px 0;">
+      <div class="col-md-12">
+        <div class="row">
+          <div class="col-md-12 card">
+            <div class="">
+              Total Cases - Cumulative
+            </div>
+            <div id="chart_cumulative"></div>
+          </div>
+          <div class="col-md-12 card">
+            <div class="">
+              Cases - Daily
+            </div>
+            <div id="chart_daily"></div>
+          </div>
+
+        </div>
+
+      </div>
+      <!-- <div class="col-md-2">filters</div>-->
+    </div>
+
+    <!-- <div class="col-md-6">
+      <div class="card" id="map" ></div>
+    </div> -->
+    <input type="radio" onclick="javascript:show_map();" id="select-map-confirmed" name="map_indicator"
+      value="confirmed" checked><label> Confirmed</label>
+    <input type="radio" onclick="javascript:show_map();" id="select-map-active" name="map_indicator"
+      value="active"><label> Active</label>
+    <input type="radio" onclick="javascript:show_map();" id="select-map-recovered" name="map_indicator"
+      value="recovered"><label> Recovered</label>
+    <input type="radio" onclick="javascript:show_map();" id="select-map-deaths" name="map_indicator"
+      value="deaths"><label> Deaths</label>
+    <div class="card">
+      <div class="row">
+        <div class="col-md-8">
+          <div>
+            <div class="map" id="confirmed-map"> </div>
+            <div class="map" id="active-map"></div>
+            <div class="map" id="recovered-map"></div>
+            <div class="map" id="deaths-map"></div>
+
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div>
+            <div id="tree_confirmed"></div>
+            <div id="tree_active"></div>
+            <div id="tree_recovered"></div>
+            <div id="tree_deaths"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+
+
+  <!-- <div id="chart_div1" style="width: 900px; height: 500px;"></div>  -->
+  <!-- <div id="visualization" ></div> -->
+
+</body>
+
+</html>
