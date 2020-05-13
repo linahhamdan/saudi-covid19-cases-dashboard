@@ -955,6 +955,25 @@ return r;
         container: "confirmed-map"
       });
 
+
+      var webmap_confirmed_region = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "62f1b23059854881a12e79370d4c639f"
+        }
+      });
+      var view_confirmed_region = new MapView({
+        map: webmap_confirmed_region,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "confirmed-map-region"
+      });
+
+
+
+
       esriConfig.portalUrl = "https://kapsarc.esri.com/arcgis";
 
       var webmap_active = new WebMap({
@@ -971,6 +990,23 @@ return r;
         minZoom: 4,
 
         container: "active-map"
+      });
+
+
+      var webmap_active_region = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "5595e51610944b1f853fe6f427dac315"
+        }
+      });
+      var view_active_region = new MapView({
+        map: webmap_active_region,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+
+        container: "active-map-region"
       });
 
 
@@ -991,6 +1027,22 @@ return r;
       });
 
 
+      var webmap_recovered_region = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "6113d6d6756e44c7b8e44fc116c81c99"
+        }
+      });
+      var view_recovered_region = new MapView({
+        map: webmap_recovered_region,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "recovered-map-region"
+      });
+
+
       var webmap_deaths = new WebMap({
         portalItem: {
           // autocasts as new PortalItem()
@@ -1004,6 +1056,21 @@ return r;
         maxZoom: 7,
         minZoom: 4,
         container: "deaths-map"
+      });
+
+      var webmap_deaths_region = new WebMap({
+        portalItem: {
+          // autocasts as new PortalItem()
+          id: "30f74531624148df9eda16928d3c5cfd"
+        }
+      });
+      var view_deaths_region = new MapView({
+        map: webmap_deaths_region,
+        center: [44.5, 24.4],
+        zoom: 5,
+        maxZoom: 7,
+        minZoom: 4,
+        container: "deaths-map-region"
       });
 
 
@@ -1022,10 +1089,12 @@ return r;
 
     function show_map() {
       if (document.getElementById('select-map-confirmed').checked) {
-        document.getElementById('confirmed-map').style.height = '500px';
         document.getElementById('active-map').style.height = 0;
         document.getElementById('recovered-map').style.height = 0;
         document.getElementById('deaths-map').style.height = 0;
+        document.getElementById('active-map-region').style.height = 0;
+        document.getElementById('recovered-map-region').style.height = 0;
+        document.getElementById('deaths-map-region').style.height = 0;
 
 
 
@@ -1040,19 +1109,28 @@ return r;
           document.getElementById('tree_confirmed').style.display = "block";
           document.getElementById('tree_confirmed1').style.display = "none";
 
+          document.getElementById('confirmed-map').style.height = '500px';
+          document.getElementById('confirmed-map-region').style.height = 0;
+
 
         }else if (document.getElementById('select-view-region').checked) {
           document.getElementById('tree_confirmed').style.display = "none";
           document.getElementById('tree_confirmed1').style.display = "block";
+
+          document.getElementById('confirmed-map').style.height = 0;
+          document.getElementById('confirmed-map-region').style.height = '500px';
+
         }
         
       }
       else if (document.getElementById('select-map-active').checked) {
 
         document.getElementById('confirmed-map').style.height = 0;
-        document.getElementById('active-map').style.height = '500px';
         document.getElementById('recovered-map').style.height = 0;
         document.getElementById('deaths-map').style.height = 0;
+        document.getElementById('confirmed-map-region').style.height = 0;
+        document.getElementById('recovered-map-region').style.height = 0;
+        document.getElementById('deaths-map-region').style.height = 0;
 
 
 
@@ -1067,16 +1145,25 @@ return r;
         if (document.getElementById('select-view-city').checked) {
           document.getElementById('tree_active').style.display = "block";
           document.getElementById('tree_active1').style.display = "none";
+        document.getElementById('active-map').style.height = '500px';
+        document.getElementById('active-map-region').style.height = 0;
+
         }else if (document.getElementById('select-view-region').checked) {
           document.getElementById('tree_active').style.display = "none";
           document.getElementById('tree_active1').style.display = "block";
+
+        document.getElementById('active-map').style.height = 0;
+        document.getElementById('active-map-region').style.height = '500px';
         }
       }
       else if (document.getElementById('select-map-recovered').checked) {
         document.getElementById('confirmed-map').style.height = 0;
         document.getElementById('active-map').style.height = 0;
-        document.getElementById('recovered-map').style.height = '500px';
         document.getElementById('deaths-map').style.height = 0;
+
+        document.getElementById('confirmed-map-region').style.height = 0;
+        document.getElementById('active-map-region').style.height = 0;
+        document.getElementById('deaths-map-region').style.height = 0;
 
         document.getElementById('tree_confirmed').style.display = "none";
         document.getElementById('tree_confirmed1').style.display = "none";
@@ -1089,12 +1176,18 @@ return r;
         if (document.getElementById('select-view-city').checked) {
         document.getElementById('tree_recovered').style.display = "block";
         document.getElementById('tree_recovered1').style.display = "none";
+        document.getElementById('recovered-map').style.height = '500px';
+        document.getElementById('recovered-map-region').style.height = 0;
+
 
 
         }else if (document.getElementById('select-view-region').checked) {
 
         document.getElementById('tree_recovered').style.display = "none";
         document.getElementById('tree_recovered1').style.display = "block";
+
+        document.getElementById('recovered-map').style.height = 0;
+        document.getElementById('recovered-map-region').style.height = '500px';
         }
 
 
@@ -1103,7 +1196,10 @@ return r;
         document.getElementById('confirmed-map').style.height = 0;
         document.getElementById('active-map').style.height = 0;
         document.getElementById('recovered-map').style.height = 0;
-        document.getElementById('deaths-map').style.height = '500px';
+
+        document.getElementById('confirmed-map-region').style.height = 0;
+        document.getElementById('active-map-region').style.height = 0;
+        document.getElementById('recovered-map-region').style.height = 0;
 
 
         document.getElementById('tree_confirmed').style.display = "none";
@@ -1119,12 +1215,18 @@ return r;
         if (document.getElementById('select-view-city').checked) {
         document.getElementById('tree_deaths').style.display = "block";
         document.getElementById('tree_deaths1').style.display = "none";
+        document.getElementById('deaths-map').style.height = '500px';
+        document.getElementById('deaths-map-region').style.height = 0;
+
 
 
         }else if (document.getElementById('select-view-region').checked) {
 
         document.getElementById('tree_deaths').style.display = "none";
         document.getElementById('tree_deaths1').style.display = "block";
+        document.getElementById('deaths-map').style.height = 0;
+        document.getElementById('deaths-map-region').style.height = '500px';
+        
         }
       }
     }
@@ -1244,7 +1346,7 @@ return r;
       <div class="card" id="map" ></div>
     </div> -->
     <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-5">
     <b>Cases:</b>
     <input type="radio" onclick="javascript:show_map();" id="select-map-confirmed" name="map_indicator"
       value="confirmed" checked><label> Confirmed</label>
@@ -1255,12 +1357,12 @@ return r;
     <input type="radio" onclick="javascript:show_map();" id="select-map-deaths" name="map_indicator"
       value="deaths"><label> Deaths</label>
 </div>
-<div class="col-md-6">
+<div class="col-md-5">
     <b>Veiw by:</b> 
     <input type="radio" onclick="javascript:show_map();" id="select-view-city" name="view_indicator"
-      value="city"><label> City</label>
+      value="city" checked><label> City</label>
     <input type="radio" onclick="javascript:show_map();" id="select-view-region" name="view_indicator"
-      value="region" checked><label> Region</label>
+      value="region" ><label> Region</label>
     </div>
     </div>
 
@@ -1274,6 +1376,11 @@ return r;
             <div class="map" id="active-map"></div>
             <div class="map" id="recovered-map"></div>
             <div class="map" id="deaths-map"></div>
+
+            <div class="map" id="confirmed-map-region"> </div>
+            <div class="map" id="active-map-region"></div>
+            <div class="map" id="recovered-map-region"></div>
+            <div class="map" id="deaths-map-region"></div>
 
           </div>
         </div>
