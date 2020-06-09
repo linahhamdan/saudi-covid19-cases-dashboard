@@ -88,54 +88,94 @@
   <script type="text/javascript">
 
 
-    dataset_url="https://datasource.kapsarc.org/api/records/1.0/search/?dataset=saudi-arabia-coronavirus-disease-covid-19-situation&q=&sort=-date&facet=daily_cumulative&rows=-1&facet=indicator&facet=date&facet=event&facet=region&facet=city&refine.city=Total"
-    var records;
-    var result_data;
-    
-    fetch(dataset_url)
+    daily_url = 'https://services8.arcgis.com/uiAtN7dLXbrrdVL5/ArcGIS/rest/services/Saudi_COVID19_Cases/FeatureServer/1/query?where=1%3D1&objectIds=&time=&resultType=none&outFields=*&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&orderByFields=Reportdt&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=pjson&token=';
+    var cumulative_dataset;
+    var daily_dataset;
+
+
+
+    events_url='https://raw.githubusercontent.com/linahhamdan/saudi-covid19-cases-dashboard/master/events.json'
+    regions_url='https://raw.githubusercontent.com/linahhamdan/saudi-covid19-cases-dashboard/master/regions.json'
+
+    var events;
+    var regions;
+
+
+    fetch(events_url)
       .then(res => res.json())
       .then((out) => {
-        records = out["records"];
-        var helper = {};
-        result_data = records.reduce(function (r, value) {
-          var key = value["fields"]["date"];
-          var row = value["fields"];
-
-          if (helper[key]) {
-            if (helper[key] && helper[key][row["daily_cumulative"]]) {
-            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
-            } else{
-
-            helper[key][row["daily_cumulative"]]={};
-            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
-
-            }
-          } else{
-            helper[key] = {};
-            helper[key][row["daily_cumulative"]]={};
-            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
-          }
-          return helper;
-        }, []);
-
+        events = out;
+        console.log('Checkout this JSON! ', out);
       })
       .catch(err => { throw err });
+
+    fetch(regions_url)
+      .then(res => res.json())
+      .then((out) => {
+        regions = out;
+        console.log('Checkout this JSON! ', out);
+      })
+      .catch(err => { throw err });
+
+    fetch(daily_url)
+      .then(res => res.json())
+      .then((out) => {
+        daily_dataset = out["features"];
+        console.log('Checkout this JSON! ', out);
+      })
+      .catch(err => { throw err });
+
+
+
+
+
 
     google.charts.load('current', { packages: ['corechart', 'line'] });
     google.charts.setOnLoadCallback(drawCurveTypes);
 
-
-
-
     function drawCurveTypes() {
-    
-      var last_date = Object.keys(result_data)[Object.keys(result_data).length-1];
-      console.log('length ', 90);
 
-      var Total_Confirmed = result_data[last_date]["Cumulative"]["Cases"]["cases"];
-      var Total_Active = result_data[last_date]["Cumulative"]["Active cases"]["cases"];
-      var Total_Recovered =result_data[last_date]["Cumulative"]["Recoveries"]["cases"]; 
-      var Total_Deaths = result_data[last_date]["Cumulative"]["Mortalities"]["cases"]; 
+      var helper = {};
+      var daily_result = daily_dataset.reduce(function (r, value) {
+
+        var date = new Date(value["attributes"]["Reportdt"]);
+        var dd = ("0" + (date.getDate())).slice(-2); //date.getDate();
+        var mm = ("0" + (date.getMonth() + 1)).slice(-2); //date.getMonth() + 1; //January is 0!
+        var yyyy = date.getFullYear();
+
+        var key = mm+"/"+ dd+"/"+yyyy;//"02/07/2011" "mm/dd/yyyy"
+
+        var confirmed_value = value["attributes"]["Confirmed"];
+        var active_value = value["attributes"]["Active"];
+        var recovered_value = value["attributes"]["Recovered"];
+        var deaths_value = value["attributes"]["Deaths"];
+
+        if (!helper[key]) {
+          // helper[key] = //Object.assign({}, value["attributes"]); // create a copy of o
+          helper[key] = { Day: key, Confirmed: confirmed_value, Active: active_value, Recovered: recovered_value, Deaths: deaths_value };
+          r.push(helper[key]);
+        } else {
+          helper[key].Confirmed += confirmed_value;
+          helper[key].Active += active_value;
+          helper[key].Recovered += recovered_value;
+          helper[key].Deaths += deaths_value;
+          //   helper[key].instances += o.instances;
+        }
+        return r;
+      }, []);
+
+      console.log(daily_result);
+
+      var Total_Confirmed = -1, Total_Active = -1, Total_Recovered = 0, Total_Deaths = 0;
+
+      daily_result.forEach(function (item, index) {
+        // console.log(item.Active);
+        Total_Confirmed += item.Confirmed;
+        Total_Active += item.Active;
+        Total_Recovered += item.Recovered;
+        Total_Deaths += item.Deaths;
+      });
+      // console.log(total_indicators);
 
       document.getElementById("total-confirmed").innerHTML = Total_Confirmed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       document.getElementById("total-active").innerHTML = Total_Active.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -156,66 +196,28 @@
 
 
 
-      var cumulative_data = [];
-      var daily_data = [];
 
-
-      Object.keys(result_data).forEach(function(date) {
-
-        for (var row in result_data[date]["Cumulative"]) {
-          var c = result_data[date]["Cumulative"]["Cases"];
-          var a = result_data[date]["Cumulative"]["Active cases"];
-          var r = result_data[date]["Cumulative"]["Recoveries"];
-          var d = result_data[date]["Cumulative"]["Mortalities"];
-
-          var e = result_data[date]["Cumulative"]["Cases"]["event"];
-          var row = [ new Date(date),
-                    (e) ? e : null , 
-                    (c) ? c["cases"] : null, 
-                    (a) ? a["cases"] : null , 
-                    (r) ? r["cases"] : null , 
-                    (d) ? d["cases"] : null
-                    ];
-          cumulative_data.push(row);
-    
-        }
-
-        for (var d in result_data[date]["Daily"]) {
-          var c = result_data[date]["Daily"]["Cases"];
-          var a = result_data[date]["Daily"]["Active cases"];
-          var r = result_data[date]["Daily"]["Recoveries"];
-          var d = result_data[date]["Daily"]["Mortalities"];
-
-          var e = result_data[date]["Daily"]["Cases"]["event"];
-          var row = [ new Date(date),
-                    (e) ? e : null , 
-                    (c) ? c["cases"] : null, 
-                    (a) ? a["cases"] : null , 
-                    (r) ? r["cases"] : null , 
-                    (d) ? d["cases"] : null
-                    ];
-          daily_data.push(row);
-        }
-    
-    
-      });
 
 
       var data = new google.visualization.DataTable();
-      
-      data.addColumn('date', 'Date');
+      data.addColumn('date', 'Day');
       data.addColumn({ type: 'string', role: 'annotation' });
       data.addColumn('number', 'Confirmed');
       data.addColumn('number', 'Active');
       data.addColumn('number', 'Recovered');
       data.addColumn('number', 'Deaths');
-      data.addRows(daily_data);
-
-
+      daily_result.forEach(function myFunction(item, index, arr) {
+        var event = null;
+        if ((item["Day"] in events) == true) {
+          event = events[item["Day"]];
+        }
+        var row = [new Date(item["Day"]), event, item["Confirmed"], item["Active"], item["Recovered"], item["Deaths"]];
+        data.addRow(row);
+      });
       var options = {
 
         'height': 500,
-        chartArea: { left: 50, top: 30, height: '75%', width: "93%" },
+        chartArea: { left: 50, top: 30, height: '75%', width: "90%" },
         'legend': 'bottom',
         hAxis: {
           format: 'M/d',
@@ -247,20 +249,51 @@
 
 
 
+
+
+
+
+
+      var cumulative_result = [];
+      var sum_confirmed = -1, sum_active = -1, sum_recovered = 0, sum_deaths = 0;
+      daily_result.forEach(function myFunction(item, index, arr) {
+        sum_confirmed += item["Confirmed"];
+        sum_active += item["Active"];
+        sum_recovered += item["Recovered"];
+        sum_deaths += item["Deaths"];
+        cumulative_result.push({ Day: item["Day"], Confirmed: sum_confirmed, Active: sum_active, Recovered: sum_recovered, Deaths: sum_deaths });
+
+      });
+
+      console.log(cumulative_result);
+
       var data = new google.visualization.DataTable();
-      data.addColumn('date', 'Date');
+      data.addColumn('date', 'Day');
       data.addColumn({ type: 'string', role: 'annotation' });
+
       data.addColumn('number', 'Confirmed');
       data.addColumn('number', 'Active');
+
       data.addColumn('number', 'Recovered');
+
       data.addColumn('number', 'Deaths');
-      data.addRows(cumulative_data);
+      cumulative_result.forEach(function myFunction(item, index, arr) {
+        // console.log(item);
+        // data.addRow([, null, null, 1, 0.5]);
+        var event = null;
+        if ((item["Day"] in events) == true) {
+          event = events[item["Day"]];
+        }
+
+        var row = [new Date(item["Day"]), event, item["Confirmed"], item["Active"], item["Recovered"], item["Deaths"]];
+        data.addRow(row);
+      });
       var options = {
         'height': 500,
 
-        chartArea: { left: 50, top: 30, height: '75%', 'width': '93%' },
+        chartArea: { left: 50, top: 30, height: '75%', 'width': '90%' },
         'legend': 'bottom',
-        pointSize: 4,
+        pointSize: 5,
         hAxis: {
           format: 'M/d',
           // title: 'Time'
@@ -343,7 +376,13 @@
 
 
 
-    
+
+
+
+
+
+
+
 
       var dt_confirmed = [['City', 'Parent', 'Value'], ['City (Confirmed Cases)', null, 0]];
       daily_bycity.forEach(function myFunction(item, index, arr) {
@@ -1306,8 +1345,8 @@ return r;
     <!-- <div class="col-md-6">
       <div class="card" id="map" ></div>
     </div> -->
-<div class="row">
-    <!-- <div class="col-md-5">
+    <div class="row">
+    <div class="col-md-5">
     <b>Cases:</b>
     <input type="radio" onclick="javascript:show_map();" id="select-map-confirmed" name="map_indicator"
       value="confirmed" checked><label> Confirmed</label>
@@ -1317,19 +1356,19 @@ return r;
       value="recovered"><label> Recovered</label>
     <input type="radio" onclick="javascript:show_map();" id="select-map-deaths" name="map_indicator"
       value="deaths"><label> Deaths</label>
-    </div> -->
+</div>
 <div class="col-md-5">
-    <!-- <b>Veiw by:</b> 
+    <b>Veiw by:</b> 
     <input type="radio" onclick="javascript:show_map();" id="select-view-city" name="view_indicator"
       value="city" checked><label> City</label>
     <input type="radio" onclick="javascript:show_map();" id="select-view-region" name="view_indicator"
       value="region" ><label> Region</label>
     </div>
-    </div> -->
+    </div>
 
 
 
-    <!-- <div class="card">
+    <div class="card">
       <div class="row">
         <div class="col-md-8">
           <div>
@@ -1358,7 +1397,7 @@ return r;
           </div>
         </div>
       </div>
-    </div> -->
+    </div>
 
 
   </div>
