@@ -86,7 +86,7 @@
   </style>
   
   <script type="text/javascript">
-$( document ).ready(function() {
+function loadchart() {
     console.log( "ready!" );
 
 
@@ -303,7 +303,7 @@ $( document ).ready(function() {
     }
 
 
-});
+};
 
     
 
@@ -311,7 +311,7 @@ $( document ).ready(function() {
 </script>
 </head>
 
-<body>
+<body onload="javascript:loadchart();">
 
   <div class="container">
     <div class="row">
