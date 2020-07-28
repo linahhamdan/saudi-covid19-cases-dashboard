@@ -14,7 +14,10 @@
     crossorigin="anonymous"></script>
   <link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:300,400|Roboto:300,400,500,700&display=swap"
     rel="stylesheet">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.15/esri/themes/light/main.css" />
 
+    <script src="https://js.arcgis.com/4.15/"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
       font-family: 'Roboto', sans-serif;
@@ -81,8 +84,11 @@
       color: #27AE60;
     }
   </style>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  
   <script type="text/javascript">
+$( document ).ready(function() {
+    console.log( "ready!" );
+
 
 
     dataset_url="https://datasource.kapsarc.org/api/records/1.0/search/?dataset=saudi-arabia-coronavirus-disease-covid-19-situation&q=&sort=-date&facet=daily_cumulative&rows=-1&facet=indicator&facet=date&facet=event&facet=region&facet=city&refine.city=Total"
@@ -97,7 +103,6 @@
         result_data = records.reduce(function (r, value) {
           var key = value["fields"]["date"];
           var row = value["fields"];
-
           if (helper[key]) {
             if (helper[key] && helper[key][row["daily_cumulative"]]) {
             helper[key][row["daily_cumulative"]][row["indicator"]]=row;
@@ -115,17 +120,17 @@
           return helper;
         }, []);
 
+        google.charts.load('current', { packages: ['corechart', 'line'] });
+        google.charts.setOnLoadCallback(function() { drawCurveTypes(result_data) });
+        
+
       })
       .catch(err => { throw err });
 
-    google.charts.load('current', { packages: ['corechart', 'line'] });
-    google.charts.setOnLoadCallback(drawCurveTypes);
 
 
 
-
-    function drawCurveTypes() {
-    
+    function drawCurveTypes(result_data) {
       var last_date = Object.keys(result_data)[Object.keys(result_data).length-1];
       console.log('length ', 90);
 
@@ -237,14 +242,21 @@
           }
         }
       };
-      var chart2 = new google.visualization.LineChart(document.getElementById('chart_daily'));
-      chart2.draw(data, options);
+      var chart = new google.visualization.LineChart(document.getElementById('chart_daily'));
+      chart.draw(data, options);
+
+
+
+
+
+
 
 
 
 
 
       var data = new google.visualization.DataTable();
+      
       data.addColumn('date', 'Date');
       data.addColumn({ type: 'string', role: 'annotation' });
       data.addColumn('number', 'Confirmed');
@@ -252,12 +264,14 @@
       data.addColumn('number', 'Recovered');
       data.addColumn('number', 'Deaths');
       data.addRows(cumulative_data);
+
+
       var options = {
         'height': 500,
 
         chartArea: { left: 50, top: 30, height: '75%', 'width': '93%' },
         'legend': 'bottom',
-        pointSize: 4,
+        pointSize: 2,
         hAxis: {
           format: 'M/d',
           // title: 'Time'
@@ -286,753 +300,18 @@
 
 
 
-
     }
 
 
-
-
-
-
-
-
-
-
-    google.charts.load('current', { 'packages': ['treemap'] });
-    google.charts.setOnLoadCallback(drawTreeChart);
-
-
-
-
-
-
-
-
-    
-    function drawTreeChart() {
-
-
-
-      var helper = {};
-      var daily_bycity = daily_dataset.reduce(function (r, value) {
-
-        var key = value["attributes"]["Name_Eng"];
-
-        var confirmed_value = value["attributes"]["Confirmed"];
-        var active_value = value["attributes"]["Active"];
-        var recovered_value = value["attributes"]["Recovered"];
-        var deaths_value = value["attributes"]["Deaths"];
-
-        if (!helper[key]) {
-          // helper[key] = //Object.assign({}, value["attributes"]); // create a copy of o
-          helper[key] = { Region:regions[key],City: key, Confirmed: confirmed_value, Active: active_value, Recovered: recovered_value, Deaths: deaths_value };
-          r.push(helper[key]);
-        } else {
-          helper[key].Confirmed += confirmed_value;
-          helper[key].Active += active_value;
-          helper[key].Recovered += recovered_value;
-          helper[key].Deaths += deaths_value;
-          //   helper[key].instances += o.instances;
-        }
-        return r;
-      }, []);
-
-
-
+});
 
     
 
-      var dt_confirmed = [['City', 'Parent', 'Value'], ['City (Confirmed Cases)', null, 0]];
-      daily_bycity.forEach(function myFunction(item, index, arr) {
-        var row = [item["City"], "City (Confirmed Cases)", item["Confirmed"]];
-        dt_confirmed.push(row);
-      });
-      var data_confirmed = new google.visualization.arrayToDataTable(dt_confirmed);
 
-
-      var view_confirmed = new google.visualization.DataView(data_confirmed);
-      view_confirmed.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_confirmed.getColumnLabel(0),
-        type: data_confirmed.getColumnType(0)
-      }, 1, 2]);
-
-      tree_confirmed = new google.visualization.TreeMap(document.getElementById('tree_confirmed'));
-      google.visualization.events.addListener(tree_confirmed, 'select', function () {
-        tree_confirmed.setSelection([]);
-      });
-      tree_confirmed.draw(view_confirmed, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#ffa882',
-        maxColor: '#FF7335',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipConfirmed,
-        useWeightedAverageForAggregation: false
-      });
-      function showTooltipConfirmed(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_confirmed.getValue(row, 0) +
-          '</b>, ' + data_confirmed.getValue(row, 2);
-      }
-
-
-
-
-     
-
-
-
-
-
-
-
-
-
-      var dt_active = [['City', 'Parent', 'Value'], ['City (Active Cases)', null, 0]];
-      daily_bycity.forEach(function myFunction(item, index, arr) {
-        var row = [item["City"], "City (Active Cases)", item["Active"]];
-        dt_active.push(row);
-      });
-
-      var data_active = new google.visualization.arrayToDataTable(dt_active);
-
-
-      var view_active = new google.visualization.DataView(data_active);
-      view_active.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_active.getColumnLabel(0),
-        type: data_active.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_active = new google.visualization.TreeMap(document.getElementById('tree_active'));
-      google.visualization.events.addListener(tree_active, 'select', function () {
-        tree_active.setSelection([]);
-      });
-      tree_active.draw(view_active, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#ffa882',
-        maxColor: '#EB5757',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipActive,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipActive(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_active.getValue(row, 0) +
-          '</b>, ' + data_active.getValue(row, 2);
-      }
-
-
-
-
-
-
-
-
-
-      var dt_recovered = [['City', 'Parent', 'Value'], ['City (Recovered Cases)', null, 0]];
-      daily_bycity.forEach(function myFunction(item, index, arr) {
-        var row = [item["City"], "City (Recovered Cases)", Math.round(item["Recovered"])];
-        dt_recovered.push(row);
-      });
-
-      var data_recovered = new google.visualization.arrayToDataTable(dt_recovered);
-
-
-      var view_recovered = new google.visualization.DataView(data_recovered);
-      view_recovered.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_recovered.getColumnLabel(0),
-        type: data_recovered.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_recovered = new google.visualization.TreeMap(document.getElementById('tree_recovered'));
-      google.visualization.events.addListener(tree_recovered, 'select', function () {
-        tree_recovered.setSelection([]);
-      });
-      tree_recovered.draw(view_recovered, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#4bd786',
-        maxColor: '#27AE60',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipRecovered,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipRecovered(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_recovered.getValue(row, 0) +
-          '</b>, ' + data_recovered.getValue(row, 2);
-      }
-
-
-
-      var dt_deaths = [['City', 'Parent', 'Value'], ['City (Death Cases)', null, 0]];
-      daily_bycity.forEach(function myFunction(item, index, arr) {
-        var row = [item["City"], "City (Death Cases)", Math.round(item["Deaths"])];
-        dt_deaths.push(row);
-      });
-
-      var data_deaths = new google.visualization.arrayToDataTable(dt_deaths);
-
-
-      var view_deaths = new google.visualization.DataView(data_deaths);
-      view_deaths.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_deaths.getColumnLabel(0),
-        type: data_deaths.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_deaths = new google.visualization.TreeMap(document.getElementById('tree_deaths'));
-      google.visualization.events.addListener(tree_deaths, 'select', function () {
-        tree_deaths.setSelection([]);
-      });
-      tree_deaths.draw(view_deaths, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#75abf3',
-        maxColor: '#2F80ED',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipDeaths,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipDeaths(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_deaths.getValue(row, 0) +
-          '</b>, ' + data_deaths.getValue(row, 2);
-      }
-
-
-
-
-
-
-
-
-
-
-
-
-      var helper = {};
-      var groupByRegion = daily_bycity.reduce(function (r, value) {
-
-var key = value['Region'];
-// console.log(key);
-
-var confirmed_value = value["Confirmed"];
-var active_value = value["Active"];
-var recovered_value = value["Recovered"];
-var deaths_value = value["Deaths"];
-
-if (!helper[key]) {
-// console.log("key******");
-// console.log(key);
-
-  // helper[key] = //Object.assign({}, value["attributes"]); // create a copy of o
-  helper[key] = { Region:key, Confirmed: confirmed_value, Active: active_value, Recovered: recovered_value, Deaths: deaths_value };
-  r.push(helper[key]);
-} else {
-  helper[key].Confirmed += confirmed_value;
-  helper[key].Active += active_value;
-  helper[key].Recovered += recovered_value;
-  helper[key].Deaths += deaths_value;
-  //   helper[key].instances += o.instances;
-}
-return r;
-}, []);
-
-
-
-      var dt_confirmed = [['Region', 'Parent', 'Value'], ['Region (Confirmed Cases)', null, 0]];
-      groupByRegion.forEach(function myFunction(item, index, arr) {
-        var row = [item["Region"], 'Region (Confirmed Cases)', item["Confirmed"]];
-        dt_confirmed.push(row);
-      });
-      var data_confirmed = new google.visualization.arrayToDataTable(dt_confirmed);
-
-
-      var view_confirmed = new google.visualization.DataView(data_confirmed);
-      view_confirmed.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_confirmed.getColumnLabel(0),
-        type: data_confirmed.getColumnType(0)
-      }, 1, 2]);
-
-      tree_confirmed1 = new google.visualization.TreeMap(document.getElementById('tree_confirmed1'));
-      google.visualization.events.addListener(tree_confirmed1, 'select', function () {
-        tree_confirmed1.setSelection([]);
-      });
-      tree_confirmed1.draw(view_confirmed, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#ffa882',
-        maxColor: '#FF7335',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipConfirmed1,
-        useWeightedAverageForAggregation: false
-      });
-      function showTooltipConfirmed1(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_confirmed.getValue(row, 0) +
-          '</b>, ' + data_confirmed.getValue(row, 2);
-      }
-
-
-
-
-
-
-
-
-      var dt_active = [['Region', 'Parent', 'Value'], ['Region (Active Cases)', null, 0]];
-      groupByRegion.forEach(function myFunction(item, index, arr) {
-        var row = [item["Region"], "Region (Active Cases)", item["Active"]];
-        dt_active.push(row);
-      });
-
-      var data_active = new google.visualization.arrayToDataTable(dt_active);
-
-
-      var view_active = new google.visualization.DataView(data_active);
-      view_active.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + ')'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_active.getColumnLabel(0),
-        type: data_active.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_active1 = new google.visualization.TreeMap(document.getElementById('tree_active1'));
-      google.visualization.events.addListener(tree_active1, 'select', function () {
-        tree_active.setSelection([]);
-      });
-      tree_active1.draw(view_active, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#ffa882',
-        maxColor: '#EB5757',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipActive1,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipActive1(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_active.getValue(row, 0) +
-          '</b>, ' + data_active.getValue(row, 2);
-      }
-
-
-
-
-
-
-
-
-
-
-
-
-
-      var dt_recovered = [['Region', 'Parent', 'Value'], ['Region (Recovered Percentage)', null, 0]];
-      groupByRegion.forEach(function myFunction(item, index, arr) {
-        var row = [item["Region"], "Region (Recovered Percentage)", Math.round(item["Recovered"]*100/item["Confirmed"])];
-        dt_recovered.push(row);
-      });
-
-      var data_recovered = new google.visualization.arrayToDataTable(dt_recovered);
-
-
-      var view_recovered = new google.visualization.DataView(data_recovered);
-      view_recovered.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + '%)'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_recovered.getColumnLabel(0),
-        type: data_recovered.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_recovered1 = new google.visualization.TreeMap(document.getElementById('tree_recovered1'));
-      google.visualization.events.addListener(tree_recovered1, 'select', function () {
-        tree_recovered1.setSelection([]);
-      });
-      tree_recovered1.draw(view_recovered, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#4bd786',
-        maxColor: '#27AE60',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipRecovered1,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipRecovered1(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_recovered.getValue(row, 0) +
-          '</b>, ' + data_recovered.getValue(row, 2)+'%';
-      }
-
-
-
-      var dt_deaths = [['Region', 'Parent', 'Value'], ['Region (Death Percentage)', null, 0]];
-      groupByRegion.forEach(function myFunction(item, index, arr) {
-        var row = [item["Region"], "Region (Death Percentage)", (item["Deaths"]*100/item["Confirmed"])];
-        dt_deaths.push(row);
-      });
-
-      var data_deaths = new google.visualization.arrayToDataTable(dt_deaths);
-
-
-      var view_deaths = new google.visualization.DataView(data_deaths);
-      view_deaths.setColumns([{
-        calc: function (dt, row) {
-          var rowValue;
-
-          if (row === 0) {
-            rowValue = dt.getValue(row, 0);  // value for global
-          } else {
-            // change display value by changing formatted value
-            rowValue = {
-              v: dt.getValue(row, 0),
-              f: dt.getValue(row, 0) + ' (' + dt.getFormattedValue(row, 2) + '%)'
-            };
-          }
-
-          return rowValue;
-        },
-        label: data_deaths.getColumnLabel(0),
-        type: data_deaths.getColumnType(0)
-      }, 1, 2]);
-
-
-
-      tree_deaths1 = new google.visualization.TreeMap(document.getElementById('tree_deaths1'));
-      google.visualization.events.addListener(tree_deaths1, 'select', function () {
-        tree_deaths1.setSelection([]);
-      });
-      tree_deaths1.draw(view_deaths, {
-        height: 500,
-        minColor: '#ededed',
-        midColor: '#75abf3',
-        maxColor: '#2F80ED',
-        headerHeight: 15,
-        fontColor: 'black',
-        // showScale: true
-        generateTooltip: showTooltipDeaths1,
-        useWeightedAverageForAggregation: false
-      });
-
-
-
-
-      function showTooltipDeaths1(row, size, value) {
-        return '<div style="background:#fd9; padding:5px; border-style:solid">' +
-          '<span><b>' + data_deaths.getValue(row, 0) +
-          '</b>, ' + data_deaths.getValue(row, 2)+'%';
-      }
-
-
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
-
-    function show_map() {
-      if (document.getElementById('select-map-confirmed').checked) {
-        document.getElementById('active-map').style.height = 0;
-        document.getElementById('recovered-map').style.height = 0;
-        document.getElementById('deaths-map').style.height = 0;
-        document.getElementById('active-map-region').style.height = 0;
-        document.getElementById('recovered-map-region').style.height = 0;
-        document.getElementById('deaths-map-region').style.height = 0;
-
-
-
-          document.getElementById('tree_active').style.display = "none";
-          document.getElementById('tree_recovered').style.display = "none";
-          document.getElementById('tree_deaths').style.display = "none";
-          document.getElementById('tree_active1').style.display = "none";
-          document.getElementById('tree_recovered1').style.display = "none";
-          document.getElementById('tree_deaths1').style.display = "none";
-
-        if (document.getElementById('select-view-city').checked) {
-          document.getElementById('tree_confirmed').style.display = "block";
-          document.getElementById('tree_confirmed1').style.display = "none";
-
-          document.getElementById('confirmed-map').style.height = '500px';
-          document.getElementById('confirmed-map-region').style.height = 0;
-
-
-        }else if (document.getElementById('select-view-region').checked) {
-          document.getElementById('tree_confirmed').style.display = "none";
-          document.getElementById('tree_confirmed1').style.display = "block";
-
-          document.getElementById('confirmed-map').style.height = 0;
-          document.getElementById('confirmed-map-region').style.height = '500px';
-
-        }
-        
-      }
-      else if (document.getElementById('select-map-active').checked) {
-
-        document.getElementById('confirmed-map').style.height = 0;
-        document.getElementById('recovered-map').style.height = 0;
-        document.getElementById('deaths-map').style.height = 0;
-        document.getElementById('confirmed-map-region').style.height = 0;
-        document.getElementById('recovered-map-region').style.height = 0;
-        document.getElementById('deaths-map-region').style.height = 0;
-
-
-
-
-        document.getElementById('tree_confirmed').style.display = "none";
-          document.getElementById('tree_recovered').style.display = "none";
-          document.getElementById('tree_deaths').style.display = "none";
-          document.getElementById('tree_confirmed1').style.display = "none";
-          document.getElementById('tree_recovered1').style.display = "none";
-          document.getElementById('tree_deaths1').style.display = "none";
-
-        if (document.getElementById('select-view-city').checked) {
-          document.getElementById('tree_active').style.display = "block";
-          document.getElementById('tree_active1').style.display = "none";
-        document.getElementById('active-map').style.height = '500px';
-        document.getElementById('active-map-region').style.height = 0;
-
-        }else if (document.getElementById('select-view-region').checked) {
-          document.getElementById('tree_active').style.display = "none";
-          document.getElementById('tree_active1').style.display = "block";
-
-        document.getElementById('active-map').style.height = 0;
-        document.getElementById('active-map-region').style.height = '500px';
-        }
-      }
-      else if (document.getElementById('select-map-recovered').checked) {
-        document.getElementById('confirmed-map').style.height = 0;
-        document.getElementById('active-map').style.height = 0;
-        document.getElementById('deaths-map').style.height = 0;
-
-        document.getElementById('confirmed-map-region').style.height = 0;
-        document.getElementById('active-map-region').style.height = 0;
-        document.getElementById('deaths-map-region').style.height = 0;
-
-        document.getElementById('tree_confirmed').style.display = "none";
-        document.getElementById('tree_confirmed1').style.display = "none";
-        document.getElementById('tree_active').style.display = "none";
-        document.getElementById('tree_active1').style.display = "none";
-        document.getElementById('tree_deaths').style.display = "none";
-        document.getElementById('tree_deaths1').style.display = "none";
-
-
-        if (document.getElementById('select-view-city').checked) {
-        document.getElementById('tree_recovered').style.display = "block";
-        document.getElementById('tree_recovered1').style.display = "none";
-        document.getElementById('recovered-map').style.height = '500px';
-        document.getElementById('recovered-map-region').style.height = 0;
-
-
-
-        }else if (document.getElementById('select-view-region').checked) {
-
-        document.getElementById('tree_recovered').style.display = "none";
-        document.getElementById('tree_recovered1').style.display = "block";
-
-        document.getElementById('recovered-map').style.height = 0;
-        document.getElementById('recovered-map-region').style.height = '500px';
-        }
-
-
-      }
-      else if (document.getElementById('select-map-deaths').checked) {
-        document.getElementById('confirmed-map').style.height = 0;
-        document.getElementById('active-map').style.height = 0;
-        document.getElementById('recovered-map').style.height = 0;
-
-        document.getElementById('confirmed-map-region').style.height = 0;
-        document.getElementById('active-map-region').style.height = 0;
-        document.getElementById('recovered-map-region').style.height = 0;
-
-
-        document.getElementById('tree_confirmed').style.display = "none";
-        document.getElementById('tree_active').style.display = "none";
-        document.getElementById('tree_recovered').style.display = "none";
-        document.getElementById('tree_confirmed1').style.display = "none";
-        document.getElementById('tree_active1').style.display = "none";
-        document.getElementById('tree_recovered1').style.display = "none";
-
-
-
-
-        if (document.getElementById('select-view-city').checked) {
-        document.getElementById('tree_deaths').style.display = "block";
-        document.getElementById('tree_deaths1').style.display = "none";
-        document.getElementById('deaths-map').style.height = '500px';
-        document.getElementById('deaths-map-region').style.height = 0;
-
-
-
-        }else if (document.getElementById('select-view-region').checked) {
-
-        document.getElementById('tree_deaths').style.display = "none";
-        document.getElementById('tree_deaths1').style.display = "block";
-        document.getElementById('deaths-map').style.height = 0;
-        document.getElementById('deaths-map-region').style.height = '500px';
-        
-        }
-      }
-    }
-  </script>
+</script>
 </head>
 
-<body onload="javascript:show_map();">
+<body>
 
   <div class="container">
     <div class="row">
@@ -1145,25 +424,7 @@ return r;
       <div class="card" id="map" ></div>
     </div> -->
 <div class="row">
-    <!-- <div class="col-md-5">
-    <b>Cases:</b>
-    <input type="radio" onclick="javascript:show_map();" id="select-map-confirmed" name="map_indicator"
-      value="confirmed" checked><label> Confirmed</label>
-    <input type="radio" onclick="javascript:show_map();" id="select-map-active" name="map_indicator"
-      value="active"><label> Active</label>
-    <input type="radio" onclick="javascript:show_map();" id="select-map-recovered" name="map_indicator"
-      value="recovered"><label> Recovered</label>
-    <input type="radio" onclick="javascript:show_map();" id="select-map-deaths" name="map_indicator"
-      value="deaths"><label> Deaths</label>
-    </div> -->
 <div class="col-md-5">
-    <!-- <b>Veiw by:</b> 
-    <input type="radio" onclick="javascript:show_map();" id="select-view-city" name="view_indicator"
-      value="city" checked><label> City</label>
-    <input type="radio" onclick="javascript:show_map();" id="select-view-region" name="view_indicator"
-      value="region" ><label> Region</label>
-    </div>
-    </div> -->
 
 
 
