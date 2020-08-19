@@ -45,14 +45,16 @@ api = {
 }
 
 
-def getRecords(record_type, page):
-    print('Getting records for {} cases [page {}]...'.format(record_type, page))
+def getRecords(record_type, page=0):
+    print('Getting records for {} cases [page {}]...'.format(
+        record_type, page))
     # construct full url
-    results_count = '&resultOffset={}&resultRecordCount={}'.format(api['data_count']*page, api['data_count'])
+    results_count = '&resultOffset={}&resultRecordCount={}'.format(
+        api['data_count']*page, api['data_count'])
     full_url = '{}{}{}{}'.format(
-        api['base_url'], 
+        api['base_url'],
         api['record_type'][record_type]['url'],
-        api['date_order'], 
+        api['date_order'],
         results_count)
 
     # send request
