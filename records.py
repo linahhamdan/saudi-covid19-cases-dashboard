@@ -126,7 +126,6 @@ def calculateActiveCases():
                 if _key not in city_day:
                     _temp['case_value'] *= factor
                     _temp['case_type'] = "active"
-                    _temp['indicator'] = "Daily"
                     city_day[_key] = _temp
                 else:
                     city_day[_key]['case_value'] += _temp['case_value'] * factor
