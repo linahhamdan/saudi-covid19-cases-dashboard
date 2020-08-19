@@ -2,11 +2,12 @@
     "data": {
         "timestamap": "[Number] record timestamp in milliseconds",
         "date"      : "[String] record date in YYYY-MM-DD format",
+        "indicator" : "[String] Daily || Cumulative",
         "city_en"   : "[String] city name in english || total",
         "city_ar"   : "[String] city name in arabic || total",
         "region_en" : "[String] region name in english || total",
         "region_ar" : "[String] region name in arabic || total",
-        "case_type" : "[String] confirmed || recovery || death || tested || critical",
+        "case_type" : "[String] confirmed || recovery || death || tested || critical || active",
         "case_value": "[Number] actual value of the case type"
     },
     "notes": "we use total for city and regin for case_type tested and critical"
