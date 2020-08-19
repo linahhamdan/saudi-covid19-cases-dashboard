@@ -62,11 +62,11 @@ api = {
 
 
 def getRecords(record_type, page=0):
-    print('Getting records for {} cases [page {}]...'.format(
-        record_type, page))
+    """
+        get records from source
+    """
     # construct full url
-    results_count = '&resultOffset={}&resultRecordCount={}'.format(
-        api['data_count']*page, api['data_count'])
+    results_count = '&resultOffset={}&resultRecordCount={}'.format(api['data_count']*page, api['data_count'])
     full_url = '{}{}{}{}'.format(
         api['base_url'],
         api['record_type'][record_type]['url'],
@@ -75,7 +75,6 @@ def getRecords(record_type, page=0):
 
     # send request
     res = _requester(full_url)
-    print('Records in this request: {}'.format(len(res['features'])))
 
     # construct records list
     for record in res['features']:
@@ -141,8 +140,6 @@ def accumulate(types):
     """
         Daily accumulate records for each case_type & city (if applicable)
     """
-    print("Accumulating records ...")
-
     for case_type_record in records:
         if case_type_record not in types:
             continue
@@ -172,7 +169,6 @@ def _requester(url):
 
 
 def writeBulkToExcel():
-    print('writing records to {} ...'.format(file_name))
     # create and setup work sheet
     workbook = xlsxwriter.Workbook(file_name)
     worksheet = workbook.add_worksheet()
@@ -208,7 +204,6 @@ def writeBulkToExcel():
                 worksheet.write(row, col, _value)
             row += 1  # go next row
 
-    print('Done writing records!')
     workbook.close()
 
 
