@@ -64,14 +64,19 @@ def getRecords(record_type, page=0):
     # construct records list
     for record in res['features']:
         record = record['attributes']
-        
+
+        # filter out records with no date
+        if not ('Reportdt' in record or 'ReportDate' in record):
+            continue
+
         # special case for tested api, it returns 'ReportDate' instead of 'Reportdt'
-        if record_type == 'tested': 
+        if record_type == 'tested':
             record['Reportdt'] = record['ReportDate']
 
-        records.append({
-            "timestamap": record['Reportdt'],
+        records[record_type].append({
+            "timestamp": record['Reportdt'],
             "date": datetime.fromtimestamp(record['Reportdt']/1000).strftime('%Y-%m-%d'),
+            "indicator": "Daily",
             "city_en": record['PlaceName_EN'] if 'PlaceName_EN' in record else "total",
             "city_ar": record['PlaceName_AR'] if 'PlaceName_AR' in record else "الكل",
             "region_en": record['RegionName_EN'] if 'RegionName_EN' in record else "total",
