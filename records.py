@@ -214,5 +214,4 @@ if __name__ == '__main__':
     getRecords('tested')
     accumulate(["confirmed", "recovery", "death", "critical", "tested"])
     calculateActiveCases()
-    accumulate(['active'])
     writeBulkToExcel()
