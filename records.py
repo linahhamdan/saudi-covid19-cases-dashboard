@@ -100,15 +100,64 @@ def getRecords(record_type, page=0):
             "case_type": record_type,
             "case_value": record[api['record_type'][record_type]['field']]
         })
-    
+
     # check if there is more data go grap it
     if api['allow_pagination'] and len(res['features']) == api['data_count']:
         page += 1
         return getRecords(record_type, page)
-    else:
-        # write all records to excel
-        print('Collected {} {} records ...\n'.format(len(records), record_type))
-        return
+
+
+def calculateActiveCases():
+    """
+        calculate daily active cases from cumulative cases
+        daily_active = cumulative_confirmed - cumulative_recovery - cumulative_death
+    """
+    city_day = {}
+    for case_type_record in cumulative_records:
+        if case_type_record == 'confirmed' or case_type_record == 'recovery' or case_type_record == 'death':
+            # create a factor to multiply by
+            if case_type_record == 'confirmed':
+                factor = 1
+            else:
+                factor = -1
+
+            for record in cumulative_records[case_type_record]:
+                _key = '{}_{}'.format(record['city_en'], record['date'])
+                _temp = copy.deepcopy(record)
+                if _key not in city_day:
+                    _temp['case_value'] *= factor
+                    _temp['case_type'] = "active"
+                    _temp['indicator'] = "Daily"
+                    city_day[_key] = _temp
+                else:
+                    city_day[_key]['case_value'] += _temp['case_value'] * factor
+
+    # store daily records
+    for record in city_day.values():
+        records['active'].append(record)
+
+
+def accumulate(types):
+    """
+        Daily accumulate records for each case_type & city (if applicable)
+    """
+    print("Accumulating records ...")
+
+    for case_type_record in records:
+        if case_type_record not in types:
+            continue
+
+        accumulated_city = {}
+
+        for record in records[case_type_record]:
+            if record['city_en'] not in accumulated_city:
+                accumulated_city[record['city_en']] = record['case_value']
+            else:
+                accumulated_city[record['city_en']] += record['case_value']
+                temp_record = copy.deepcopy(record)
+                temp_record['indicator'] = "Cumulative"
+                temp_record['case_value'] = accumulated_city[record['city_en']]
+                cumulative_records[case_type_record].append(temp_record)
 
 
 def _requester(url):
