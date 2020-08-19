@@ -6,13 +6,29 @@
 import json
 import requests
 from datetime import datetime
+import itertools
+import copy
 import xlsxwriter
 
 # records list
-records = []
-
+records = {
+    "confirmed": [],
+    "recovery": [],
+    "death": [],
+    "active": [],
+    "critical": [],
+    "tested": []
+}
+cumulative_records = {
+    "confirmed": [],
+    "recovery": [],
+    "death": [],
+    "active": [],
+    "critical": [],
+    "tested": []
+}
 # file name to store records
-file_name = 'records_test.xlsx'
+file_name = 'records.xlsx'
 
 # API details | Note: Max count allowed 2000 -- pagination needed
 api = {
@@ -104,17 +120,18 @@ def _requester(url):
     else:
         # stop all the process
         raise SystemExit("HTTP Error: {}".format(r))
- 
+
 
 def writeBulkToExcel():
     print('writing records to {} ...'.format(file_name))
     # create and setup work sheet
     workbook = xlsxwriter.Workbook(file_name)
     worksheet = workbook.add_worksheet()
-    
+
     # adding columns headers
-    columns = ["timestamap",
+    columns = ["timestamp",
                "date",
+               "indicator",
                "city_en",
                "city_ar",
                "region_en",
@@ -129,20 +146,30 @@ def writeBulkToExcel():
 
     # write bulk records
     row = 1
-    for record in records:
-        for _key, _value in record.items():
-            col = columns.index(_key)
-            worksheet.write(row, col, _value)
-        row += 1  # go next row
+    for case_type_record in records:
+        for record in records[case_type_record]:
+            for _key, _value in record.items():
+                col = columns.index(_key)
+                worksheet.write(row, col, _value)
+            row += 1  # go next row
+
+        for record in cumulative_records[case_type_record]:
+            for _key, _value in record.items():
+                col = columns.index(_key)
+                worksheet.write(row, col, _value)
+            row += 1  # go next row
 
     print('Done writing records!')
     workbook.close()
 
 
 if __name__ == '__main__':
-    getRecords('confirmed', 0)
-    getRecords('recovery', 0)
-    getRecords('death', 0)
-    getRecords('critical', 0)
-    getRecords('tested', 0)
+    getRecords('confirmed')
+    getRecords('recovery')
+    getRecords('death')
+    getRecords('critical')
+    getRecords('tested')
+    accumulate(["confirmed", "recovery", "death", "critical", "tested"])
+    calculateActiveCases()
+    accumulate(['active'])
     writeBulkToExcel()
