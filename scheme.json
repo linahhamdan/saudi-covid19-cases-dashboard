@@ -8,7 +8,8 @@
         "region_en" : "[String] region name in english || total",
         "region_ar" : "[String] region name in arabic || total",
         "case_type" : "[String] confirmed || recovery || death || tested || critical || active",
-        "case_value": "[Number] actual value of the case type"
+        "case_value": "[Number] actual value of the case type",
+        "event"     : "[String] special event happend in the same day" 
     },
     "notes": "we use total for city and regin for case_type tested and critical"
 }

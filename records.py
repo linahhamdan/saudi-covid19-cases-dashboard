@@ -9,6 +9,12 @@ from datetime import datetime
 import itertools
 import copy
 import xlsxwriter
+import csv
+import boto3
+from botocore.exceptions import ClientError
+import os
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 # records list
 records = {
@@ -27,8 +33,26 @@ cumulative_records = {
     "critical": [],
     "tested": []
 }
-# file name to store records
-file_name = 'records.xlsx'
+# file name to store records - same as dataset uid
+file_name = 'da_kqus2h'
+
+# special events 
+events = {
+    "2020-03-02": "First case of COVID-19",
+    "2020-03-04": "Umrah suspension",
+    "2020-03-09": "flights suspended to number of countries",
+    "2020-03-15": "International flights suspension for 14 days",
+    "2020-03-16": "Gov / private suspension ",
+    "2020-03-21": "Domestic flights suspension",
+    "2020-03-32": "Curfew started for 21 days (6am -7 pm)",
+    "2020-03-26": "Riyadh, Makkah and Madinah lockdown - curfew (6am - 3pm)",
+    "2020-03-29": "Jeddah lockdown",
+    "2020-03-30": "Makkah , Madinah 24 hours curfew",
+    "2020-04-02": "Makkah lockdown",
+    "2020-04-04": "Jeddah areas lockdown - 24 h curfew",
+    "2020-04-06": "Riyadh, Dammam , Tabuk , Dahran, Hafuf, Jeddah, Taif, Qatif , Khobar24h curfew",
+    "2020-04-25": "Partial lifting of curfew in all cities except Makkah"
+}
 
 # API details | Note: Max count allowed 2000 -- pagination needed
 api = {
@@ -88,16 +112,20 @@ def getRecords(record_type, page=0):
         if record_type == 'tested':
             record['Reportdt'] = record['ReportDate']
 
+        _date = datetime.fromtimestamp(record['Reportdt']/1000).strftime('%Y-%m-%d')
+        _event = events.get(_date, "")
+
         records[record_type].append({
             "timestamp": record['Reportdt'],
-            "date": datetime.fromtimestamp(record['Reportdt']/1000).strftime('%Y-%m-%d'),
+            "date": _date,
             "indicator": "Daily",
-            "city_en": record['PlaceName_EN'] if 'PlaceName_EN' in record else "total",
+            "city_en": record['PlaceName_EN'].title() if 'PlaceName_EN' in record else "total",
             "city_ar": record['PlaceName_AR'] if 'PlaceName_AR' in record else "الكل",
-            "region_en": record['RegionName_EN'] if 'RegionName_EN' in record else "total",
+            "region_en": record['RegionName_EN'].title() if 'RegionName_EN' in record else "total",
             "region_ar": record['RegionName_AR'] if 'RegionName_AR' in record else "الكل",
             "case_type": record_type,
-            "case_value": record[api['record_type'][record_type]['field']]
+            "case_value": record[api['record_type'][record_type]['field']],
+            "event": _event
         })
 
     # check if there is more data go grap it
@@ -169,7 +197,7 @@ def _requester(url):
 
 def writeBulkToExcel():
     # create and setup work sheet
-    workbook = xlsxwriter.Workbook(file_name)
+    workbook = xlsxwriter.Workbook(file_name + '.xlsx')
     worksheet = workbook.add_worksheet()
 
     # adding columns headers
@@ -181,7 +209,8 @@ def writeBulkToExcel():
                "region_en",
                "region_ar",
                "case_type",
-               "case_value"]
+               "case_value",
+               "event"]
 
     # write column_name in the first row
     for column_name in columns:
@@ -206,6 +235,43 @@ def writeBulkToExcel():
     workbook.close()
 
 
+def writeCSV():
+    columns = ["timestamp",
+               "date",
+               "indicator",
+               "city_en",
+               "city_ar",
+               "region_en",
+               "region_ar",
+               "case_type",
+               "case_value",
+               "event"]
+
+    with open(file_name + '.csv', 'w', encoding='utf8', newline='') as output_file:
+        fc = csv.DictWriter(output_file, fieldnames=columns)
+        fc.writeheader()
+        for case_type_record in records:
+            fc.writerows(records[case_type_record])
+            fc.writerows(cumulative_records[case_type_record])
+
+
+def upload_to_aws():
+    ACCESS_KEY = os.environ.get('aws_access_key_id')
+    SECRET_KEY = os.environ.get('aws_secret_access_key')
+    BUCKET = os.environ.get('s3_bucket')
+
+    s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY, aws_secret_access_key=SECRET_KEY)
+    file_to_upload = file_name + '.csv'
+
+    try:
+        s3.upload_file('./'+file_to_upload, BUCKET, file_to_upload, ExtraArgs={'ACL': 'public-read'})
+        print("Done ... Upload Successful")
+        return True
+    except ClientError as e:
+        print(e)
+        return False
+
+
 if __name__ == '__main__':
     getRecords('confirmed')
     getRecords('recovery')
@@ -214,4 +280,6 @@ if __name__ == '__main__':
     getRecords('tested')
     accumulate(["confirmed", "recovery", "death", "critical", "tested"])
     calculateActiveCases()
-    writeBulkToExcel()
+    # writeBulkToExcel()
+    writeCSV()
+    upload_to_aws()
