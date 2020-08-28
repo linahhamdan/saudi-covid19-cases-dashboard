@@ -18,21 +18,24 @@ load_dotenv(find_dotenv())
 
 # records list
 records = {
-    "confirmed": [],
-    "recovery": [],
-    "death": [],
-    "active": [],
-    "critical": [],
-    "tested": []
+    "Cases": [],
+    "Recoveries": [],
+    "Mortalities": [],
+    "Active": [],
+    "Critical": [],
+    "Tested": []
 }
 cumulative_records = {
-    "confirmed": [],
-    "recovery": [],
-    "death": [],
-    "active": [],
-    "critical": [],
-    "tested": []
+    "Cases": [],
+    "Recoveries": [],
+    "Mortalities": [],
+    "Active": [],
+    "Critical": [],
+    "Tested": []
 }
+
+date_total = {}
+
 # file name to store records - same as dataset uid
 file_name = 'da_kqus2h'
 
@@ -61,23 +64,23 @@ api = {
     "allow_pagination": True,
     "date_order": "asc",
     "record_type": {
-        "confirmed": {
+        "Cases": {
             "url": "VWPlacesCasesHostedView/FeatureServer/0/query?f=json&where=1=1&outFields=PlaceName_EN,PlaceName_AR,RegionName_EN,RegionName_AR,Confirmed,Reportdt&orderByFields=Reportdt ",
             "field": "Confirmed"
         },
-        "recovery": {
+        "Recoveries": {
             "url": "VWPlacesCasesHostedView/FeatureServer/0/query?f=json&where=1=1&outFields=PlaceName_EN,PlaceName_AR,RegionName_EN,RegionName_AR,Recovered,Reportdt&orderByFields=Reportdt ",
             "field": "Recovered"
         },
-        "death": {
+        "Mortalities": {
             "url": "VWPlacesCasesHostedView/FeatureServer/0/query?f=json&where=1=1&outFields=PlaceName_EN,PlaceName_AR,RegionName_EN,RegionName_AR,Deaths,Reportdt&orderByFields=Reportdt ",
             "field": "Deaths"
         }, 
-        "critical": {
+        "Critical": {
             "url": "DailyCriticalCases_ViewLayer/FeatureServer/0/query?f=json&where=1=1&outFields=After,Reportdt&orderByFields=Reportdt ",
             "field": "After"
         }, 
-        "tested": {
+        "Tested": {
             "url": "DailyTestPerformance_ViewLayer/FeatureServer/0/query?f=json&where=1=1&outFields=DailyTest,ReportDate&orderByFields=ReportDate ",
             "field": "DailyTest"
         }
@@ -89,6 +92,8 @@ def getRecords(record_type, page=0):
     """
         get records from source
     """
+    global date_total
+
     # construct full url
     results_count = '&resultOffset={}&resultRecordCount={}'.format(api['data_count']*page, api['data_count'])
     full_url = '{}{}{}{}'.format(
@@ -108,22 +113,25 @@ def getRecords(record_type, page=0):
         if not ('Reportdt' in record or 'ReportDate' in record):
             continue
 
-        # special case for tested api, it returns 'ReportDate' instead of 'Reportdt'
-        if record_type == 'tested':
+        # special case for Tested api, it returns 'ReportDate' instead of 'Reportdt'
+        if record_type == 'Tested':
             record['Reportdt'] = record['ReportDate']
 
         _date = datetime.fromtimestamp(record['Reportdt']/1000).strftime('%Y-%m-%d')
         _event = events.get(_date, "")
 
+        # collect total ases for a day
+        if record_type == 'Cases' or record_type == 'Recoveries' or record_type == 'Mortalities':
+            date_total[_date] = date_total.get(_date, 0) + record[api['record_type'][record_type]['field']]
+
         records[record_type].append({
-            "timestamp": record['Reportdt'],
             "date": _date,
-            "indicator": "Daily",
-            "city_en": record['PlaceName_EN'].title() if 'PlaceName_EN' in record else "total",
+            "daily_cumulative": 'Cumulative' if record_type == 'Critical' else "Daily",
+            "city_en": record['PlaceName_EN'].title() if 'PlaceName_EN' in record else "Total",
             "city_ar": record['PlaceName_AR'] if 'PlaceName_AR' in record else "الكل",
-            "region_en": record['RegionName_EN'].title() if 'RegionName_EN' in record else "total",
+            "region_en": record['RegionName_EN'].title() if 'RegionName_EN' in record else "Total",
             "region_ar": record['RegionName_AR'] if 'RegionName_AR' in record else "الكل",
-            "case_type": record_type,
+            "indicator": record_type,
             "case_value": record[api['record_type'][record_type]['field']],
             "event": _event
         })
@@ -132,56 +140,71 @@ def getRecords(record_type, page=0):
     if api['allow_pagination'] and len(res['features']) == api['data_count']:
         page += 1
         return getRecords(record_type, page)
+    else:
+        # calculate total cases for a day
+        for day in date_total:
+            records[record_type].append({
+                "date": day,
+                "daily_cumulative": "Daily",
+                "city_en": "Total",
+                "city_ar": "الكل",
+                "region_en": "Total",
+                "region_ar": "الكل",
+                "indicator": record_type,
+                "case_value": date_total[day],
+                "event": events.get(day, '')
+            })
+        date_total = {}
 
 
 def calculateActiveCases():
     """
-        calculate daily active cases from cumulative cases
-        daily_active = cumulative_confirmed - cumulative_recovery - cumulative_death
+        calculate daily Active from cumulative cases
+        daily_Active = cumulative_Cases - cumulative_Recoveries - cumulative_Mortalities
     """
     city_day = {}
-    for case_type_record in cumulative_records:
-        if case_type_record == 'confirmed' or case_type_record == 'recovery' or case_type_record == 'death':
+    for indicator_record in cumulative_records:
+        if indicator_record == 'Cases' or indicator_record == 'Recoveries' or indicator_record == 'Mortalities':
             # create a factor to multiply by
-            if case_type_record == 'confirmed':
+            if indicator_record == 'Cases':
                 factor = 1
             else:
                 factor = -1
 
-            for record in cumulative_records[case_type_record]:
+            for record in cumulative_records[indicator_record]:
                 _key = '{}_{}'.format(record['city_en'], record['date'])
                 _temp = copy.deepcopy(record)
                 if _key not in city_day:
                     _temp['case_value'] *= factor
-                    _temp['case_type'] = "active"
+                    _temp['indicator'] = "Active"
                     city_day[_key] = _temp
                 else:
                     city_day[_key]['case_value'] += _temp['case_value'] * factor
 
     # store daily records
     for record in city_day.values():
-        records['active'].append(record)
+        records['Active'].append(record)
 
 
 def accumulate(types):
     """
-        Daily accumulate records for each case_type & city (if applicable)
+        Daily accumulate records for each indicator & city (if applicable)
     """
-    for case_type_record in records:
-        if case_type_record not in types:
+    for indicator_record in records:
+        if indicator_record not in types:
             continue
 
         accumulated_city = {}
 
-        for record in records[case_type_record]:
+        for record in records[indicator_record]:
             if record['city_en'] not in accumulated_city:
                 accumulated_city[record['city_en']] = record['case_value']
             else:
                 accumulated_city[record['city_en']] += record['case_value']
                 temp_record = copy.deepcopy(record)
-                temp_record['indicator'] = "Cumulative"
+                temp_record['daily_cumulative'] = "Cumulative"
                 temp_record['case_value'] = accumulated_city[record['city_en']]
-                cumulative_records[case_type_record].append(temp_record)
+                cumulative_records[indicator_record].append(temp_record)
 
 
 def _requester(url):
@@ -201,14 +224,13 @@ def writeBulkToExcel():
     worksheet = workbook.add_worksheet()
 
     # adding columns headers
-    columns = ["timestamp",
-               "date",
-               "indicator",
+    columns = ["date",
+               "daily_cumulative",
                "city_en",
                "city_ar",
                "region_en",
                "region_ar",
-               "case_type",
+               "indicator",
                "case_value",
                "event"]
 
@@ -219,14 +241,14 @@ def writeBulkToExcel():
 
     # write bulk records
     row = 1
-    for case_type_record in records:
-        for record in records[case_type_record]:
+    for indicator_record in records:
+        for record in records[indicator_record]:
             for _key, _value in record.items():
                 col = columns.index(_key)
                 worksheet.write(row, col, _value)
             row += 1  # go next row
 
-        for record in cumulative_records[case_type_record]:
+        for record in cumulative_records[indicator_record]:
             for _key, _value in record.items():
                 col = columns.index(_key)
                 worksheet.write(row, col, _value)
@@ -236,23 +258,22 @@ def writeBulkToExcel():
 
 
 def writeCSV():
-    columns = ["timestamp",
-               "date",
-               "indicator",
+    columns = ["date",
+               "daily_cumulative",
                "city_en",
                "city_ar",
                "region_en",
                "region_ar",
-               "case_type",
+               "indicator",
                "case_value",
                "event"]
 
     with open(file_name + '.csv', 'w', encoding='utf8', newline='') as output_file:
         fc = csv.DictWriter(output_file, fieldnames=columns)
         fc.writeheader()
-        for case_type_record in records:
-            fc.writerows(records[case_type_record])
-            fc.writerows(cumulative_records[case_type_record])
+        for indicator_record in records:
+            fc.writerows(records[indicator_record])
+            fc.writerows(cumulative_records[indicator_record])
 
 
 def upload_to_aws():
@@ -273,12 +294,12 @@ def upload_to_aws():
 
 
 if __name__ == '__main__':
-    getRecords('confirmed')
-    getRecords('recovery')
-    getRecords('death')
-    getRecords('critical')
-    getRecords('tested')
-    accumulate(["confirmed", "recovery", "death", "critical", "tested"])
+    getRecords('Cases')
+    getRecords('Recoveries')
+    getRecords('Mortalities')
+    getRecords('Critical')
+    getRecords('Tested')
+    accumulate(["Cases", "Recoveries", "Mortalities", "Tested"])
     calculateActiveCases()
     # writeBulkToExcel()
     writeCSV()
