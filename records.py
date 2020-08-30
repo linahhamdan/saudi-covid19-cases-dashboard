@@ -37,7 +37,7 @@ cumulative_records = {
 date_total = {}
 
 # file name to store records - same as dataset uid
-file_name = 'da_kqus2h'
+file_name = 'da_bpuzuq'
 
 # special events 
 events = {
@@ -54,7 +54,8 @@ events = {
     "2020-04-02": "Makkah lockdown",
     "2020-04-04": "Jeddah areas lockdown - 24 h curfew",
     "2020-04-06": "Riyadh, Dammam , Tabuk , Dahran, Hafuf, Jeddah, Taif, Qatif , Khobar24h curfew",
-    "2020-04-25": "Partial lifting of curfew in all cities except Makkah"
+    "2020-04-25": "Partial lifting of curfew in all cities except Makkah",
+    "2020-06-21": "Curfew lifted(all regions)"
 }
 
 # API details | Note: Max count allowed 2000 -- pagination needed
