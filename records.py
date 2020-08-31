@@ -5,7 +5,7 @@
 #imports
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import itertools
 import copy
 import xlsxwriter
@@ -199,13 +199,40 @@ def accumulate(types):
 
         for record in records[indicator_record]:
             if record['city_en'] not in accumulated_city:
-                accumulated_city[record['city_en']] = record['case_value']
+                accumulated_city[record['city_en']] = {
+                    "value": record['case_value'],
+                    "date": record['date']
+                }
             else:
-                accumulated_city[record['city_en']] += record['case_value']
-                temp_record = copy.deepcopy(record)
-                temp_record['daily_cumulative'] = "Cumulative"
-                temp_record['case_value'] = accumulated_city[record['city_en']]
-                cumulative_records[indicator_record].append(temp_record)
+                cumulative_records[indicator_record] += fillMissingCumulativeDates(accumulated_city[record['city_en']], record)
+
+                accumulated_city[record['city_en']]['value'] += record['case_value']
+                accumulated_city[record['city_en']]['date'] = record['date']
+
+            
+            temp_record = copy.deepcopy(record)
+            temp_record['daily_cumulative'] = "Cumulative"
+            temp_record['case_value'] = accumulated_city[record['city_en']]['value']
+            cumulative_records[indicator_record].append(temp_record)
+
+
+def fillMissingCumulativeDates(last_record, next_record):
+    p_date = datetime.strptime(last_record['date'], '%Y-%m-%d')
+    n_date = datetime.strptime(next_record['date'], '%Y-%m-%d')
+    diff_date = (n_date - p_date).days
+
+    if diff_date < 2:
+        return []
+    
+    days = []
+    for i in range(1, diff_date):
+        days.append({
+            **next_record,
+            "daily_cumulative": "Cumulative",
+            "date": datetime.strftime(p_date+timedelta(days=i), '%Y-%m-%d'),
+            "case_value": last_record['value']
+        })
+    return days
 
 
 def _requester(url):
