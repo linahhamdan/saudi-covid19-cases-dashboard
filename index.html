@@ -91,7 +91,8 @@ function loadchart() {
 
 
 
-    dataset_url="https://datasource.kapsarc.org/api/records/1.0/search/?dataset=saudi-arabia-coronavirus-disease-covid-19-situation&q=&sort=-date&facet=daily_cumulative&rows=-1&facet=indicator&facet=date&facet=event&facet=region&facet=city&refine.city=Total"
+    dataset_url="https://datasource.kapsarc.org/api/records/1.0/search/?dataset=saudi-arabia-coronavirus-disease-covid-19-situation&q=&sort=-date&facet=daily_cumulative&rows=-1&facet=indicator&facet=date&facet=event&facet=region_en&facet=city_en&refine.city_en=Total"
+
     var records;
     var result_data;
     
@@ -132,12 +133,11 @@ function loadchart() {
 
     function drawCurveTypes(result_data) {
       var last_date = Object.keys(result_data)[Object.keys(result_data).length-1];
-      console.log('length ', 90);
 
-      var Total_Confirmed = result_data[last_date]["Cumulative"]["Cases"]["cases"];
-      var Total_Active = result_data[last_date]["Cumulative"]["Active cases"]["cases"];
-      var Total_Recovered =result_data[last_date]["Cumulative"]["Recoveries"]["cases"]; 
-      var Total_Deaths = result_data[last_date]["Cumulative"]["Mortalities"]["cases"]; 
+      var Total_Confirmed = result_data[last_date]["Cumulative"]["Cases"]["case_value"];
+      var Total_Active = result_data[last_date]["Cumulative"]["Active"]["case_value"];
+      var Total_Recovered =result_data[last_date]["Cumulative"]["Recoveries"]["case_value"]; 
+      var Total_Deaths = result_data[last_date]["Cumulative"]["Mortalities"]["case_value"]; 
 
       document.getElementById("total-confirmed").innerHTML = Total_Confirmed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       document.getElementById("total-active").innerHTML = Total_Active.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -161,22 +161,22 @@ function loadchart() {
       var cumulative_data = [];
       var daily_data = [];
 
-
       Object.keys(result_data).forEach(function(date) {
-
+        
         for (var row in result_data[date]["Cumulative"]) {
           var c = result_data[date]["Cumulative"]["Cases"];
-          var a = result_data[date]["Cumulative"]["Active cases"];
+          var a = result_data[date]["Cumulative"]["Active"];
           var r = result_data[date]["Cumulative"]["Recoveries"];
           var d = result_data[date]["Cumulative"]["Mortalities"];
 
-          var e = result_data[date]["Cumulative"]["Cases"]["event"];
+          var e = result_data[date]["Cumulative"] && result_data[date]["Cumulative"]["Cases"] && result_data[date]["Cumulative"]["Cases"]["event"];
+
           var row = [ new Date(date),
                     (e) ? e : null , 
-                    (c) ? c["cases"] : null, 
-                    (a) ? a["cases"] : null , 
-                    (r) ? r["cases"] : null , 
-                    (d) ? d["cases"] : null
+                    (c) ? c["case_value"] : null, 
+                    (a) ? a["case_value"] : null , 
+                    (r) ? r["case_value"] : null , 
+                    (d) ? d["case_value"] : null
                     ];
           cumulative_data.push(row);
     
@@ -184,17 +184,18 @@ function loadchart() {
 
         for (var d in result_data[date]["Daily"]) {
           var c = result_data[date]["Daily"]["Cases"];
-          var a = result_data[date]["Daily"]["Active cases"];
+          var a = result_data[date]["Daily"]["Active"];
           var r = result_data[date]["Daily"]["Recoveries"];
           var d = result_data[date]["Daily"]["Mortalities"];
 
-          var e = result_data[date]["Daily"]["Cases"]["event"];
+          var e = result_data[date]["Daily"] && result_data[date]["Daily"]["Cases"] && result_data[date]["Daily"]["Cases"]["event"];
+
           var row = [ new Date(date),
                     (e) ? e : null , 
-                    (c) ? c["cases"] : null, 
-                    (a) ? a["cases"] : null , 
-                    (r) ? r["cases"] : null , 
-                    (d) ? d["cases"] : null
+                    (c) ? c["case_value"] : null, 
+                    (a) ? a["case_value"] : null , 
+                    (r) ? r["case_value"] : null , 
+                    (d) ? d["case_value"] : null
                     ];
           daily_data.push(row);
         }
