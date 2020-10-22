@@ -8,7 +8,6 @@ import requests
 from datetime import datetime, timedelta
 import itertools
 import copy
-import xlsxwriter
 import csv
 import boto3
 from botocore.exceptions import ClientError
@@ -89,6 +88,9 @@ api = {
 }
 
 
+# today's date
+today = datetime.today()
+
 def getRecords(record_type, page=0):
     """
         get records from source
@@ -110,16 +112,20 @@ def getRecords(record_type, page=0):
     for record in res['features']:
         record = record['attributes']
 
-        # filter out records with no date
-        if not ('Reportdt' in record or 'ReportDate' in record):
-            continue
-
         # special case for Tested api, it returns 'ReportDate' instead of 'Reportdt'
         if record_type == 'Tested':
             record['Reportdt'] = record['ReportDate']
 
+        # filter out records with no date
+        if not 'Reportdt' in record or record['Reportdt'] == None:
+            continue
+
+
         _date = datetime.fromtimestamp(record['Reportdt']/1000).strftime('%Y-%m-%d')
         _event = events.get(_date, "")
+
+        if datetime.fromtimestamp(record['Reportdt']/1000).date() >= today.date():
+            continue
 
         # collect total ases for a day
         if record_type == 'Cases' or record_type == 'Recoveries' or record_type == 'Mortalities':
@@ -244,45 +250,6 @@ def _requester(url):
     else:
         # stop all the process
         raise SystemExit("HTTP Error: {}".format(r))
-
-
-def writeBulkToExcel():
-    # create and setup work sheet
-    workbook = xlsxwriter.Workbook(file_name + '.xlsx')
-    worksheet = workbook.add_worksheet()
-
-    # adding columns headers
-    columns = ["date",
-               "daily_cumulative",
-               "city_en",
-               "city_ar",
-               "region_en",
-               "region_ar",
-               "indicator",
-               "case_value",
-               "event"]
-
-    # write column_name in the first row
-    for column_name in columns:
-        col = columns.index(column_name)  # order.
-        worksheet.write(0, col, column_name)
-
-    # write bulk records
-    row = 1
-    for indicator_record in records:
-        for record in records[indicator_record]:
-            for _key, _value in record.items():
-                col = columns.index(_key)
-                worksheet.write(row, col, _value)
-            row += 1  # go next row
-
-        for record in cumulative_records[indicator_record]:
-            for _key, _value in record.items():
-                col = columns.index(_key)
-                worksheet.write(row, col, _value)
-            row += 1  # go next row
-
-    workbook.close()
 
 
 def writeCSV():
